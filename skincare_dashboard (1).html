@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skincare Products Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f3f0; color: #1a1a1a; padding: 24px; direction: rtl; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; color: #1a1a1a; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric { background: #fff; border-radius: 10px; border: 0.5px solid #e0ddd6; padding: 16px 18px; }
+  .metric-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .metric-value { font-size: 24px; font-weight: 500; color: #1a1a1a; }
+  .metric-sub { font-size: 11px; color: #aaa; margin-top: 4px; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .card { background: #fff; border: 0.5px solid #e0ddd6; border-radius: 12px; padding: 18px; }
+  .card-title { font-size: 13px; font-weight: 500; color: #666; margin-bottom: 16px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 11px; color: #888; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  .ingred-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ingred-name { font-size: 12px; color: #333; width: 150px; flex-shrink: 0; text-transform: capitalize; }
+  .ingred-track { flex: 1; background: #f0ede8; border-radius: 4px; height: 11px; overflow: hidden; }
+  .ingred-fill { height: 100%; border-radius: 4px; }
+  .ingred-count { font-size: 11px; color: #999; width: 36px; text-align: left; }
+  @media (max-width: 700px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Skincare Products Dashboard</h1>
+<p class="subtitle">تحليل شامل لـ 1,138 منتج عناية بالبشرة من lookfantastic.com</p>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">إجمالي المنتجات</div>
+    <div class="metric-value">1,138</div>
+    <div class="metric-sub">14 فئة مختلفة</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">متوسط السعر</div>
+    <div class="metric-value">£24.02</div>
+    <div class="metric-sub">الأكثر شيوعاً £22</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">أرخص منتج</div>
+    <div class="metric-value">£1.95</div>
+    <div class="metric-sub">Body Wash / Cleanser</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">أغلى منتج</div>
+    <div class="metric-value">£230</div>
+    <div class="metric-sub">علاجات متخصصة</div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="card">
+    <div class="card-title">عدد المنتجات حسب الفئة</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="typeChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">توزيع الأسعار</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="priceDistChart"></canvas></div>
+    <div class="legend" id="priceLegend"></div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="card">
+    <div class="card-title">متوسط سعر كل فئة (£)</div>
+    <div class="chart-wrap" style="height:300px"><canvas id="avgPriceChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">أكثر الماركات منتجاً</div>
+    <div class="chart-wrap" style="height:300px"><canvas id="brandChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">أكثر 15 مكوّن استخداماً في المنتجات</div>
+  <div id="ingredBars" style="margin-top:6px;"></div>
+</div>
+
+<script>
+const typeData = {"Mask":124,"Body Wash":123,"Moisturiser":115,"Cleanser":115,"Serum":113,"Eye Care":100,"Mist":80,"Oil":76,"Toner":73,"Balm":61,"Exfoliator":57,"Bath Salts":36,"Bath Oil":33,"Peel":32};
+const avgPriceData = {"Balm":20.93,"Bath Oil":30.41,"Bath Salts":11.4,"Body Wash":13.72,"Cleanser":17.61,"Exfoliator":18.86,"Eye Care":30.67,"Mask":15.11,"Mist":22.94,"Moisturiser":23.87,"Oil":26.11,"Peel":49.52,"Serum":46.17,"Toner":21.22};
+const priceDist = {"Under \u00a310":325,"\u00a310\u201325":423,"\u00a325\u201350":289,"\u00a350\u2013100":93,"Over \u00a3100":8};
+const brandData = {"Clinique":46,"La Roche-Posay":37,"Garnier":33,"L'Or\u00e9al":30,"Pixi":29,"Elemis":27,"Est\u00e9e Lauder":23,"DECL\u00c9OR":23,"Holika":23,"Caudalie":21};
+const topIngreds = [["glycerin",784],["phenoxyethanol",613],["parfum",579],["linalool",410],["limonene",401],["citric acid",394],["disodium edta",361],["tocopherol",360],["butylene glycol",330],["sodium hyaluronate",313],["sodium hydroxide",296],["xanthan gum",277],["ethylhexyl glycerin",266],["sodium benzoate",250],["caprylyl glycol",247]];
+
+const palette = ['#534AB7','#1D9E75','#D85A30','#378ADD','#BA7517','#D4537E','#639922','#3C3489','#0F6E56','#993C1D','#185FA5','#854F0B','#993556','#3B6D11','#A32D2D'];
+const tealPalette = ['#9FE1CB','#5DCAA1','#1D9E75','#0F6E56','#085041'];
+
+Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
+Chart.defaults.font.size = 11;
+const gridColor = 'rgba(0,0,0,0.06)';
+const textColor = '#888';
+
+new Chart(document.getElementById('typeChart'), {
+  type: 'bar',
+  data: { labels: Object.keys(typeData), datasets: [{ data: Object.values(typeData), backgroundColor: palette, borderRadius: 4, borderSkipped: false }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: textColor, maxRotation: 40, autoSkip: false, font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: textColor }, grid: { color: gridColor } } } }
+});
+
+const priceLabels = Object.keys(priceDist);
+const priceVals = Object.values(priceDist);
+const total = priceVals.reduce((a,b)=>a+b,0);
+new Chart(document.getElementById('priceDistChart'), {
+  type: 'doughnut',
+  data: { labels: priceLabels, datasets: [{ data: priceVals, backgroundColor: tealPalette, borderWidth: 0 }] },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false } } }
+});
+const leg = document.getElementById('priceLegend');
+priceLabels.forEach((l,i) => {
+  const pct = Math.round(priceVals[i]/total*100);
+  leg.innerHTML += `<span class="legend-item"><span class="legend-dot" style="background:${tealPalette[i]}"></span>${l} (${pct}%)</span>`;
+});
+
+const sortedAvg = Object.entries(avgPriceData).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('avgPriceChart'), {
+  type: 'bar',
+  data: { labels: sortedAvg.map(x=>x[0]), datasets: [{ data: sortedAvg.map(x=>x[1]), backgroundColor: '#534AB7', borderRadius: 4, borderSkipped: false }] },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: textColor, callback: v => '£'+v }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('brandChart'), {
+  type: 'bar',
+  data: { labels: Object.keys(brandData), datasets: [{ data: Object.values(brandData), backgroundColor: '#1D9E75', borderRadius: 4, borderSkipped: false }] },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { display: false } } } }
+});
+
+const maxI = topIngreds[0][1];
+const ic = document.getElementById('ingredBars');
+topIngreds.forEach(([name, count], i) => {
+  const pct = (count / maxI * 100).toFixed(1);
+  ic.innerHTML += `<div class="ingred-bar"><span class="ingred-name">${name}</span><div class="ingred-track"><div class="ingred-fill" style="width:${pct}%;background:${palette[i%palette.length]}"></div></div><span class="ingred-count">${count}</span></div>`;
+});
+</script>
+</body>
+</html>
